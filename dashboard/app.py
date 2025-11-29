@@ -43,12 +43,33 @@ symbol = st.sidebar.selectbox("Symbol", available_symbols)
 timeframe = st.sidebar.selectbox("Timeframe", ["1h", "1d", "15m"])
 data_source = st.sidebar.selectbox("Data Source", ["Yahoo Finance", "Binance"])
 
+from datetime import datetime, timedelta
+
 # Load Data
 @st.cache_data
 def load_data(symbol, timeframe, source):
     # Use absolute path relative to this file
     base_dir = os.path.dirname(__file__)
-    data_path = os.path.join(base_dir, f"../data/raw/{symbol}_{timeframe}.parquet")
+    data_dir = os.path.join(base_dir, '../data/raw')
+    data_path = os.path.join(data_dir, f"{symbol}_{timeframe}.parquet")
+    
+    if not os.path.exists(data_path):
+        st.info(f"Downloading data for {symbol} ({timeframe})...")
+        # Initialize collector with absolute path
+        collector = DataCollector(save_path=data_dir)
+        
+        # Determine date range based on timeframe
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        if timeframe == '15m':
+            start_date = (datetime.now() - timedelta(days=59)).strftime('%Y-%m-%d')
+            collector.download_stock(symbol, start_date, end_date, timeframe)
+        elif timeframe == '1h':
+            start_date = (datetime.now() - timedelta(days=720)).strftime('%Y-%m-%d')
+            collector.download_stock(symbol, start_date, end_date, timeframe)
+        else: # 1d
+            start_date = '2020-01-01'
+            collector.download_stock(symbol, start_date, end_date, timeframe)
+            
     if os.path.exists(data_path):
         return pd.read_parquet(data_path)
     else:
