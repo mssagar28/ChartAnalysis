@@ -20,16 +20,16 @@ st.title("Candlestick Pattern Analysis & Prediction")
 # Sidebar
 st.sidebar.header("Configuration")
 # Load available symbols
-# Define available symbols directly
+# Define available symbols directly (Top 50 + MCX)
 nse_symbols = [
-    'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 
-    'INFY.NS', 'SBIN.NS', 'BHARTIARTL.NS', 'ITC.NS', 
-    'KOTAKBANK.NS', 'HINDUNILVR.NS', 'LT.NS', 'AXISBANK.NS',
-    'BAJFINANCE.NS', 'ASIANPAINT.NS', 'MARUTI.NS', 'HCLTECH.NS',
-    'SUNPHARMA.NS', 'TITAN.NS', 'ULTRACEMCO.NS', 'NESTLEIND.NS',
-    'WIPRO.NS', 'POWERGRID.NS', 'NTPC.NS', 'TATAMOTORS.NS',
-    'M&M.NS', 'TECHM.NS', 'ONGC.NS', 'TATASTEEL.NS',
-    'ADANIPORTS.NS', 'BAJAJFINSV.NS', 'MCX.NS'
+    'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'SBIN.NS', 'BHARTIARTL.NS', 'ITC.NS', 
+    'KOTAKBANK.NS', 'HINDUNILVR.NS', 'LT.NS', 'AXISBANK.NS', 'BAJFINANCE.NS', 'ASIANPAINT.NS', 'MARUTI.NS', 
+    'HCLTECH.NS', 'SUNPHARMA.NS', 'TITAN.NS', 'ULTRACEMCO.NS', 'NESTLEIND.NS', 'WIPRO.NS', 'POWERGRID.NS', 
+    'NTPC.NS', 'TATAMOTORS.NS', 'M&M.NS', 'TECHM.NS', 'ONGC.NS', 'TATASTEEL.NS', 'ADANIPORTS.NS', 'BAJAJFINSV.NS',
+    'JSWSTEEL.NS', 'ADANIENT.NS', 'HINDALCO.NS', 'DRREDDY.NS', 'INDUSINDBK.NS', 'COALINDIA.NS', 'CIPLA.NS',
+    'BPCL.NS', 'HEROMOTOCO.NS', 'APOLLOHOSP.NS', 'TATACONSUM.NS', 'DIVISLAB.NS', 'EICHERMOT.NS', 'SBILIFE.NS',
+    'GRASIM.NS', 'BRITANNIA.NS', 'BAJAJ-AUTO.NS', 'UPL.NS', 'LTIM.NS', 'HDFCLIFE.NS', 'ZOMATO.NS', 'PAYTM.NS',
+    'JIOFIN.NS', 'DMART.NS', 'HAL.NS', 'VBL.NS', 'SIEMENS.NS', 'DLF.NS', 'BEL.NS', 'IOC.NS', 'IRCTC.NS'
 ]
 
 mcx_symbols = [
@@ -38,7 +38,15 @@ mcx_symbols = [
 
 available_symbols = sorted(nse_symbols + mcx_symbols)
 
-symbol = st.sidebar.selectbox("Symbol", available_symbols)
+# Symbol Selection
+st.sidebar.subheader("Select Asset")
+selection_mode = st.sidebar.radio("Selection Mode", ["Dropdown", "Custom Search"])
+
+if selection_mode == "Dropdown":
+    symbol = st.sidebar.selectbox("Symbol", available_symbols)
+else:
+    custom_symbol = st.sidebar.text_input("Enter Symbol (e.g. TATAELXSI.NS)", value="RELIANCE.NS")
+    symbol = custom_symbol.upper().strip()
 timeframe = st.sidebar.selectbox("Timeframe", ["1h", "1d", "15m", "5m"])
 data_source = st.sidebar.selectbox("Data Source", ["Yahoo Finance", "Binance"])
 
