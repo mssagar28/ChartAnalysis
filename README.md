@@ -128,3 +128,4 @@ For issues and questions:
 
 **Built with ❤️ for traders and data enthusiasts**
 "# ChartAnalysis" 
+"# ChartAnalysis" 
