@@ -368,6 +368,7 @@ if df is not None:
                                     .add_technical_indicators()
                                     .add_price_context()
                                     .add_volatility_features()
+                                    .add_lag_features()
                                     .get_features()
                                 )
                                 
