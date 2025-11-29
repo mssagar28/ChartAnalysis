@@ -327,67 +327,128 @@ if df is not None:
         else:
             st.warning("⚠️ Model not found. Please train a model first.")
             
-            if st.button("Train Model (Cloud)"):
-                with st.spinner("Training model... This may take a minute."):
+            if st.button("Train Model (Cloud) - Advanced"):
+                with st.spinner("Training advanced model... This may take 2-3 minutes."):
                     try:
                         # Import training dependencies
-                        from sklearn.model_selection import train_test_split
+                        from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
                         from models import ModelFactory
                         from features import create_targets
+                        import numpy as np
                         
-                        # 1. Prepare data
-                        st.text("Preparing training data...")
-                        # Use the current dataframe for training (simplified for cloud)
-                        # In a real scenario, we'd want more data
-                        train_df = labeled_df.copy()
+                        # 1. Prepare data from ALL available files
+                        st.text("Gathering data from all downloaded stocks...")
+                        all_training_data = []
                         
-                        # Engineer features (already done in tab2 logic, but ensure we have it)
-                        engineer = FeatureEngineer(train_df)
-                        train_df = (engineer
-                            .add_candle_features()
-                            .add_technical_indicators()
-                            .add_price_context()
-                            .add_volatility_features()
-                            .get_features()
-                        )
+                        # List all parquet files in data_dir
+                        data_files = [f for f in os.listdir(data_dir) if f.endswith('.parquet')]
                         
-                        # Create targets
-                        train_df = create_targets(train_df, horizon=1)
-                        train_df = train_df.dropna()
+                        # Limit to 10 files to prevent memory issues on cloud
+                        for f in data_files[:10]:
+                            try:
+                                f_path = os.path.join(data_dir, f)
+                                temp_df = pd.read_parquet(f_path)
+                                temp_df = preprocess_ohlcv(temp_df)
+                                
+                                # Label patterns
+                                labeler = CandlestickLabeler(temp_df)
+                                temp_df = (labeler
+                                    .label_doji()
+                                    .label_hammer()
+                                    .label_shooting_star()
+                                    .label_engulfing()
+                                    .label_harami()
+                                    .get_labeled_data()
+                                )
+                                
+                                # Engineer features
+                                engineer = FeatureEngineer(temp_df)
+                                temp_df = (engineer
+                                    .add_candle_features()
+                                    .add_technical_indicators()
+                                    .add_price_context()
+                                    .add_volatility_features()
+                                    .get_features()
+                                )
+                                
+                                # Create targets
+                                temp_df = create_targets(temp_df, horizon=1)
+                                temp_df = temp_df.dropna()
+                                
+                                all_training_data.append(temp_df)
+                            except Exception as e:
+                                print(f"Skipping {f}: {e}")
+                                continue
                         
-                        if len(train_df) < 100:
-                            st.error(f"Not enough data to train. Need at least 100 samples, got {len(train_df)}.")
+                        if not all_training_data:
+                            st.error("No valid data files found for training.")
                         else:
-                            # 2. Split data
-                            feature_cols = [col for col in train_df.columns 
-                                           if col not in ['target_return', 'target_direction', 'target_binary', 
-                                                          'target_next_close', 'symbol', 'timestamp', 'datetime']]
+                            train_df = pd.concat(all_training_data, ignore_index=True)
+                            st.text(f"Training on {len(train_df)} samples from {len(all_training_data)} stocks.")
                             
-                            X_train = train_df[feature_cols]
-                            y_train = train_df['target_binary']
-                            
-                            # 3. Train model
-                            st.text("Training XGBoost model...")
-                            model = ModelFactory.get_xgboost_model({
-                                'n_estimators': 50, # Reduced for speed
-                                'max_depth': 3,
-                                'learning_rate': 0.1
-                            })
-                            
-                            model.fit(X_train, y_train)
-                            
-                            # 4. Save model (temporarily for this session)
-                            models_dir = os.path.join(base_dir, '../models')
-                            os.makedirs(models_dir, exist_ok=True)
-                            
-                            model_path = os.path.join(models_dir, 'xgboost_baseline.joblib')
-                            feature_cols_path = os.path.join(models_dir, 'feature_columns.joblib')
-                            
-                            joblib.dump(model, model_path)
-                            joblib.dump(feature_cols, feature_cols_path)
-                            
-                            st.success("✅ Model trained and saved successfully!")
-                            st.rerun()
+                            if len(train_df) < 100:
+                                st.error(f"Not enough data to train. Need at least 100 samples, got {len(train_df)}.")
+                            else:
+                                # 2. Split data
+                                feature_cols = [col for col in train_df.columns 
+                                               if col not in ['target_return', 'target_direction', 'target_binary', 
+                                                              'target_next_close', 'symbol', 'timestamp', 'datetime']]
+                                
+                                X = train_df[feature_cols]
+                                y = train_df['target_binary']
+                                
+                                # 3. Hyperparameter Tuning with RandomizedSearchCV
+                                st.text("Tuning hyperparameters...")
+                                param_dist = {
+                                    'n_estimators': [50, 100, 200],
+                                    'max_depth': [3, 5, 7],
+                                    'learning_rate': [0.01, 0.1, 0.2],
+                                    'subsample': [0.7, 0.8, 0.9],
+                                    'colsample_bytree': [0.7, 0.8, 0.9]
+                                }
+                                
+                                xgb_model = ModelFactory.get_xgboost_model()
+                                tscv = TimeSeriesSplit(n_splits=3)
+                                
+                                random_search = RandomizedSearchCV(
+                                    xgb_model, 
+                                    param_distributions=param_dist,
+                                    n_iter=5, # Try 5 combinations
+                                    scoring='accuracy',
+                                    cv=tscv,
+                                    n_jobs=-1,
+                                    random_state=42
+                                )
+                                
+                                random_search.fit(X, y)
+                                
+                                best_model = random_search.best_estimator_
+                                st.success(f"Best Accuracy found: {random_search.best_score_:.2%}")
+                                st.write("Best params:", random_search.best_params_)
+                                
+                                # 4. Feature Selection (Top 20)
+                                st.text("Selecting top 20 features...")
+                                importances = best_model.feature_importances_
+                                indices = np.argsort(importances)[::-1]
+                                top_20_indices = indices[:20]
+                                top_20_features = [feature_cols[i] for i in top_20_indices]
+                                
+                                # Retrain on top features
+                                X_selected = X[top_20_features]
+                                best_model.fit(X_selected, y)
+                                
+                                # 5. Save model
+                                models_dir = os.path.join(base_dir, '../models')
+                                os.makedirs(models_dir, exist_ok=True)
+                                
+                                model_path = os.path.join(models_dir, 'xgboost_baseline.joblib')
+                                feature_cols_path = os.path.join(models_dir, 'feature_columns.joblib')
+                                
+                                joblib.dump(best_model, model_path)
+                                joblib.dump(top_20_features, feature_cols_path)
+                                
+                                st.success("✅ Advanced Model trained and saved successfully!")
+                                st.rerun()
                             
                     except Exception as e:
                         st.error(f"Training failed: {e}")
