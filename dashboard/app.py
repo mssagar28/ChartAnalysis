@@ -20,24 +20,23 @@ st.title("Candlestick Pattern Analysis & Prediction")
 # Sidebar
 st.sidebar.header("Configuration")
 # Load available symbols
-# Load available symbols
-data_dir = os.path.join(os.path.dirname(__file__), '../data/raw')
+# Define available symbols directly
+nse_symbols = [
+    'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 
+    'INFY.NS', 'SBIN.NS', 'BHARTIARTL.NS', 'ITC.NS', 
+    'KOTAKBANK.NS', 'HINDUNILVR.NS', 'LT.NS', 'AXISBANK.NS',
+    'BAJFINANCE.NS', 'ASIANPAINT.NS', 'MARUTI.NS', 'HCLTECH.NS',
+    'SUNPHARMA.NS', 'TITAN.NS', 'ULTRACEMCO.NS', 'NESTLEIND.NS',
+    'WIPRO.NS', 'POWERGRID.NS', 'NTPC.NS', 'TATAMOTORS.NS',
+    'M&M.NS', 'TECHM.NS', 'ONGC.NS', 'TATASTEEL.NS',
+    'ADANIPORTS.NS', 'BAJAJFINSV.NS', 'MCX.NS'
+]
 
-# Ensure data directory exists
-if not os.path.exists(data_dir):
-    os.makedirs(data_dir, exist_ok=True)
+mcx_symbols = [
+    'GC=F', 'SI=F', 'CL=F', 'NG=F', 'HG=F'
+]
 
-try:
-    available_files = [f for f in os.listdir(data_dir) if f.endswith('.parquet')]
-except FileNotFoundError:
-    available_files = []
-
-# Extract symbols and filter for NSE stocks (.NS) and MCX commodities (=F)
-all_symbols = sorted(list(set([f.split('_')[0] for f in available_files])))
-available_symbols = [s for s in all_symbols if s.endswith('.NS') or s.endswith('=F')]
-
-if not available_symbols:
-    available_symbols = ["RELIANCE.NS"]  # Fallback
+available_symbols = sorted(nse_symbols + mcx_symbols)
 
 symbol = st.sidebar.selectbox("Symbol", available_symbols)
 timeframe = st.sidebar.selectbox("Timeframe", ["1h", "1d", "15m"])
