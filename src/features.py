@@ -71,12 +71,18 @@ class FeatureEngineer:
             self.df[f'volatility_{window}'] = self.df['return_cc'].rolling(window).std()
             
             # Average True Range (ATR)
-            tr1 = self.df['h'] - self.df['l']
-            tr2 = abs(self.df['h'] - self.df['c'].shift())
-            tr3 = abs(self.df['l'] - self.df['c'].shift())
             tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
             self.df[f'atr_{window}'] = tr.rolling(window).mean()
         
+        return self
+
+    def add_lag_features(self, lags=[1, 2, 3, 5]):
+        """Add lagged features for returns and range"""
+        for lag in lags:
+            self.df[f'return_lag_{lag}'] = self.df['return_cc'].shift(lag)
+            self.df[f'range_lag_{lag}'] = self.df['range'].shift(lag)
+            self.df[f'volume_change_lag_{lag}'] = self.df['volume_change'].shift(lag)
+            
         return self
     
     def create_sequence_features(self, lookback=30):
