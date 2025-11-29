@@ -323,7 +323,73 @@ if df is not None:
                 st.error(f"Prediction error: {e}")
         else:
             st.warning("⚠️ Model not found. Please train a model first.")
-            st.info("Run `python train_model.py` in the project directory to train a model.")
+            
+            if st.button("Train Model (Cloud)"):
+                with st.spinner("Training model... This may take a minute."):
+                    try:
+                        # Import training dependencies
+                        from sklearn.model_selection import train_test_split
+                        from models import ModelFactory
+                        from features import create_targets
+                        
+                        # 1. Prepare data
+                        st.text("Preparing training data...")
+                        # Use the current dataframe for training (simplified for cloud)
+                        # In a real scenario, we'd want more data
+                        train_df = labeled_df.copy()
+                        
+                        # Engineer features (already done in tab2 logic, but ensure we have it)
+                        engineer = FeatureEngineer(train_df)
+                        train_df = (engineer
+                            .add_candle_features()
+                            .add_technical_indicators()
+                            .add_price_context()
+                            .add_volatility_features()
+                            .get_features()
+                        )
+                        
+                        # Create targets
+                        train_df = create_targets(train_df, horizon=1)
+                        train_df = train_df.dropna()
+                        
+                        if len(train_df) < 100:
+                            st.error(f"Not enough data to train. Need at least 100 samples, got {len(train_df)}.")
+                        else:
+                            # 2. Split data
+                            feature_cols = [col for col in train_df.columns 
+                                           if col not in ['target_return', 'target_direction', 'target_binary', 
+                                                          'target_next_close', 'symbol', 'timestamp', 'datetime']]
+                            
+                            X_train = train_df[feature_cols]
+                            y_train = train_df['target_binary']
+                            
+                            # 3. Train model
+                            st.text("Training XGBoost model...")
+                            model = ModelFactory.get_xgboost_model({
+                                'n_estimators': 50, # Reduced for speed
+                                'max_depth': 3,
+                                'learning_rate': 0.1
+                            })
+                            
+                            model.fit(X_train, y_train)
+                            
+                            # 4. Save model (temporarily for this session)
+                            models_dir = os.path.join(base_dir, '../models')
+                            os.makedirs(models_dir, exist_ok=True)
+                            
+                            model_path = os.path.join(models_dir, 'xgboost_baseline.joblib')
+                            feature_cols_path = os.path.join(models_dir, 'feature_columns.joblib')
+                            
+                            joblib.dump(model, model_path)
+                            joblib.dump(feature_cols, feature_cols_path)
+                            
+                            st.success("✅ Model trained and saved successfully!")
+                            st.rerun()
+                            
+                    except Exception as e:
+                        st.error(f"Training failed: {e}")
+                        import traceback
+                        st.code(traceback.format_exc())
 
 else:
     st.warning(f"Data not found for {symbol}. Please run data loader.")
