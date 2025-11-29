@@ -20,8 +20,18 @@ st.title("Candlestick Pattern Analysis & Prediction")
 # Sidebar
 st.sidebar.header("Configuration")
 # Load available symbols
+# Load available symbols
 data_dir = os.path.join(os.path.dirname(__file__), '../data/raw')
-available_files = [f for f in os.listdir(data_dir) if f.endswith('.parquet')]
+
+# Ensure data directory exists
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir, exist_ok=True)
+
+try:
+    available_files = [f for f in os.listdir(data_dir) if f.endswith('.parquet')]
+except FileNotFoundError:
+    available_files = []
+
 # Extract symbols and filter for NSE stocks (.NS) and MCX commodities (=F)
 all_symbols = sorted(list(set([f.split('_')[0] for f in available_files])))
 available_symbols = [s for s in all_symbols if s.endswith('.NS') or s.endswith('=F')]
